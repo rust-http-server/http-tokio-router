@@ -1,3 +1,6 @@
+[workspace]
+members = ["crates/http-tokio-router-macro"]
+
 [package]
 name = "http-tokio-router"
 version = "0.1.0"
