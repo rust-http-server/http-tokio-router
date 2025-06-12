@@ -3,7 +3,7 @@ use std::fmt::{Debug, Display};
 
 const ALLOWED_CHARS: [char; 5] = ['*', '{', '}', '_', '-'];
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Pattern {
     pub method: String,      // HTTP method (free-form, uppercase)
     pub full_path: String,   // The full path

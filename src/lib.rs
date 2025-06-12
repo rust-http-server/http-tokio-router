@@ -5,6 +5,7 @@ mod resolver;
 pub mod middleware;
 pub mod extractors;
 mod router;
+pub mod server;
 
 pub use router::Router;
 pub use resolver::traits::*;
