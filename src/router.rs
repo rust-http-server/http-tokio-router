@@ -3,13 +3,13 @@ use async_fn_traits::AsyncFn2;
 use http_tokio::{BodyReader, Request, Response};
 use crate::{error::HttpError, extractors::RequestParams, middleware::{Middleware, Next}, resolver::{ctx::ResolveContext, node::Node, traits::{Handler, Resolver}}, result::RouteResult};
 
-pub type NotFoundHandler = Arc<
+pub type NotFoundHandler = Box<
     dyn for<'a> Fn(&'a Request, &'a BodyReader) -> Pin<Box<dyn Future<Output = RouteResult> + Send + Sync + 'a>>
         + Send
         + Sync,
 >;
 
-pub type ErrorHandler = Arc<
+pub type ErrorHandler = Box<
     dyn for<'a> Fn(&'a Request, HttpError) -> Pin<Box<dyn Future<Output = Response> + Send + Sync + 'a>>
         + Send
         + Sync,
@@ -55,7 +55,7 @@ impl Router {
         F: for<'a> AsyncFn2<&'a Request, HttpError, Output = Response> + Send + Sync + 'static,
         for<'a> <F as AsyncFn2<&'a Request, HttpError>>::OutputFuture: Send + Sync
     {
-        self.error_handler = Some(Arc::new(move |req, err| Box::pin(handler(req, err))));
+        self.error_handler = Some(Box::new(move |req, err| Box::pin(handler(req, err))));
         self
     }
 
@@ -64,11 +64,11 @@ impl Router {
         F: for<'a> AsyncFn2<&'a Request, &'a BodyReader, Output = RouteResult> + Send + Sync + 'static, 
         for<'a> <F as AsyncFn2<&'a Request, &'a BodyReader>>::OutputFuture: Send + Sync 
     {
-        self.not_found_handler = Some(Arc::new(move |err, req| Box::pin(handler(err, req))));
+        self.not_found_handler = Some(Box::new(move |err, req| Box::pin(handler(err, req))));
         self
     }
 
-    pub async fn handle(&self, req: &Request, payload: &BodyReader) -> Response {
+    pub async fn handle_request(&self, req: &Request, payload: &BodyReader) -> Response {
         let mut resolve_ctx = ResolveContext::new(&req);
         match self.root.resolve(&mut resolve_ctx) {
             Some(handler) => {
