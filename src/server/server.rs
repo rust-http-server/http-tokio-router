@@ -1,10 +1,9 @@
 use std::{future::Future, pin::Pin, sync::Arc};
 use http_tokio::{server::{Connection, ConnectionEventsHandler, ConnectionHandler, ServerHandler}, BodyReader, Request, RequestError, Response, StatusCode};
 use tokio::net::{TcpListener, ToSocketAddrs};
-use crate::{middleware::Middleware, server::{events::DefaultServerEvents, ServerEvents}, Resolver, Router};
+use crate::{server::{events::DefaultServerEvents, ServerEvents}, Router};
 
 pub struct Server {
-    router: Router,
     keep_alive_max: usize,
     keep_alive_timeout: usize,
     events: Arc<dyn ServerEvents>
@@ -13,40 +12,29 @@ pub struct Server {
 impl Server {
     pub fn new() -> Self {
         Server {
-            router: Router::new(),
             events: Arc::new(DefaultServerEvents),
             keep_alive_max: 100,
             keep_alive_timeout: 5,
         }
     }
 
-    pub fn with_config(events: impl ServerEvents + 'static) -> Self {
-        Server {
-            router: Router::new(),
-            events: Arc::new(events),
-            keep_alive_max: 100,
-            keep_alive_timeout: 5,
-        }
-    }
-
-    pub fn add(mut self, srv: impl Resolver) -> Self {
-        self.router = self.router.add(srv);
+    pub fn keep_alive_max(&mut self, val: usize) -> &mut Self {
+        self.keep_alive_max = val;
         self
     }
 
-    pub fn at(mut self, pattern: &str, srv: impl Resolver) -> Self {
-        self.router = self.router.at(pattern, srv);
+    pub fn keep_alive_timeout(&mut self, val: usize) -> &mut Self {
+        self.keep_alive_timeout = val;
         self
     }
 
-    pub fn wrap(mut self, middleware: impl Middleware) -> Self {
-        self.router = self.router.wrap(middleware);
-        self
+    pub fn events(&mut self, events: impl ServerEvents + 'static) {
+        self.events = Arc::new(events)
     }
 
-    pub async fn run<A: ToSocketAddrs>(self, addr: A) -> Result<(), std::io::Error> {
+    pub async fn serve<A: ToSocketAddrs>(self, addr: A, router: Router) -> Result<(), std::io::Error> {
         let clone_router = ClonableRouter {
-            inner: Arc::new(self.router),
+            inner: Arc::new(router),
             events: self.events.clone(),
         };
         let server = TcpListener::bind(addr).await?;
